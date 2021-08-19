@@ -388,21 +388,106 @@ Building x86-nemu-interpreter
 
 
 
+# PA1
+
+## 1.框架代码初探
+
+```bash
+ics2020
+├── abstract-machine   # 抽象计算机
+├── fceux-am           # 红白机模拟器
+├── init.sh            # 初始化脚本
+├── Makefile           # 用于工程打包提交
+├── nemu               # NEMU
+└── README.md
+```
+
+
+
+### 准备第一个客户程序
+
+第一项工作就是将一个内置的客户程序读入到内存中, 因此我们需要一种方式让客户计算机的CPU知道客户程序的位置. 我们采取一种最简单的方式: 约定. 具体地, 我们让monitor直接把客户程序读入到一个固定的内存位置`IMAGE_START`(也就是`0x100000`).
+
+
+
+事实上, 在GNU/Linux中, 你可以很容易得知操作系统在背后做了些什么. 键入`sudo dmesg`, 就可以输出操作系统的启动日志, 操作系统的行为一览无余.
+
+### 运行第一个客户程序
+
+在nemu文件夹下运行
+
+```bash
+# Supported: mips32 riscv32 riscv64 x86.  Stop.
+make ISA=mips32 run
+# make ISA=x86 run
+...
+Welcome to mips32-NEMU!
+For help, type "help"
+(nemu) ^CMakefile:106: recipe for target 'run' failed
+```
+
+```bash
+typedef struct {
+           union {
+	          union {
+		           uint32_t _32;
+		           uint16_t _16;
+		           uint8_t _8[2];
+	          } gpr[8];
+
+	/* Do NOT change the order of the GPRs' definitions. */
+    	      struct {
+		           uint32_t eax, ecx, edx, ebx, esp, ebp, esi, edi;
+		      };
+		   };
+		  swaddr_t eip;
+}CPU_state;	
+```
+
+
+
+就是这么简单
+
+事实上, TRM的实现已经都蕴含在上述的介绍中了.
+
+- 存储器是个在`nemu/src/memory/paddr.c`中定义的大数组
+- PC和通用寄存器都在`nemu/include/isa/$ISA.h`中的结构体中定义
+- 加法器在... 嗯, 这部分框架代码有点复杂, 不过它并不影响我们对TRM的理解, 我们还是在PA2里面再介绍它吧
+- TRM的工作方式通过`cpu_exec()`和`isa_exec_once()`体现
+
+在NEMU中, 我们只需要一些很简单的C语言知识就可以理解最简单的计算机的工作方式, 真应该感谢先驱啊.
+
+## pa1.1. 基础设施:
+
+### 1.简易调试器
+
+为了提高调试的效率, 同时也作为熟悉框架代码的练习, 我们需要在monitor中实现一个具有如下功能的简易调试器 (相关部分的代码在`nemu/src/monitor/debug/`目录下), 如果你不清楚命令的格式和功能, 请参考如下表格:
+
+| 命令         | 格式          | 使用举例          | 说明                                                         |
+| ------------ | ------------- | ----------------- | ------------------------------------------------------------ |
+| 帮助(1)      | `help`        | `help`            | 打印命令的帮助信息                                           |
+| 继续运行(1)  | `c`           | `c`               | 继续运行被暂停的程序                                         |
+| 退出(1)      | `q`           | `q`               | 退出NEMU                                                     |
+| 单步执行     | `si [N]`      | `si 10`           | 让程序单步执行`N`条指令后暂停执行, 当`N`没有给出时, 缺省为`1` |
+| 打印程序状态 | `info SUBCMD` | `info r` `info w` | 打印寄存器状态 打印监视点信息                                |
+| 扫描内存(2)  | `x N EXPR`    | `x 10 $esp`       | 求出表达式`EXPR`的值, 将结果作为起始内存 地址, 以十六进制形式输出连续的`N`个4字节 |
+| 表达式求值   | `p EXPR`      | `p $eax + 1`      | 求出表达式`EXPR`的值, `EXPR`支持的 运算请见[调试中的表达式求值](https://nju-projectn.github.io/ics-pa-gitbook/ics2020/1.6.html)小节 |
+| 设置监视点   | `w EXPR`      | `w *0x2000`       | 当表达式`EXPR`的值发生变化时, 暂停程序执行                   |
+| 删除监视点   | `d N`         | `d 2`             | 删除序号为`N`的监视点                                        |
+
+备注:
+
+- (1) 命令**已实现**
+- (2) 与GDB相比, 我们在这里做了简化, 更改了命令的格式
+
+### 2.解析命令
 
 
 
 
 
+## pa1.2. 表达式求值
 
+## pa1.3.监视点
 
-
-
-
-
-
-
-
-
-
-
-
+### 5.如何阅读手册
